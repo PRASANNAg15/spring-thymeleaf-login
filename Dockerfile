@@ -1,23 +1,19 @@
 # ---------- BUILD STAGE ----------
-FROM amazoncorretto:25-alpine3.22-jdk AS builder
+FROM maven:3.9.9-amazoncorretto-25-alpine AS builder
 
 WORKDIR /build
 
-# Copy pom.xml first (enables Docker layer caching)
+# Copy pom.xml first (better caching)
 COPY pom.xml .
 
-# Copy Maven wrapper files if present
-COPY mvnw .
-COPY .mvn .mvn
+# Download dependencies
+RUN mvn -B dependency:go-offline
 
-# Download dependencies (cached if pom.xml unchanged)
-RUN ./mvnw -B dependency:go-offline
-
-# Copy the full project
+# Copy source code
 COPY src src
 
-# Build the JAR
-RUN ./mvnw -B clean package -DskipTests
+# Build jar
+RUN mvn -B clean package -DskipTests
 
 
 # ---------- RUNTIME STAGE ----------
@@ -25,7 +21,6 @@ FROM amazoncorretto:25-alpine3.22-jdk
 
 WORKDIR /app
 
-# Copy only the final JAR from build stage
 COPY --from=builder /build/target/spring-thymeleaf-login-0.0.1-SNAPSHOT.jar app.jar
 
 EXPOSE 8080
